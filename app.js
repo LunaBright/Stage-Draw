@@ -421,12 +421,14 @@ function renderSide(group) {
   clear(side);
   const schoolDone = Object.keys(group.draw.schoolNumbers).length;
   const preparing = !group.mode || (group.mode === "one" && !group.draw.representativeId) || (group.mode === "two" && schoolDone === 0);
+  const schoolOverview = group.mode === "two" && (schoolDone === 0 || (group.pendingReveal && group.draw.last?.kind === "schools"));
   side.classList.toggle("preparation", preparing);
+  side.classList.toggle("school-overview", Boolean(schoolOverview));
   let current = group.mode === "two" && schoolDone === group.schools.length && !group.pendingReveal ? nextProgram(group) : null;
   if (!current && group.pendingReveal && group.draw.last?.kind === "program") {
     const program = group.programs.find((p) => p.id === group.draw.last.programId);
     const school = group.schools.find((s) => s.id === program?.schoolId);
-    if (school && group.programs.some((p) => p.schoolId === school.id && !group.draw.programNumbers[p.id])) current = { school, program };
+    if (school && program) current = { school, program };
   }
   if (current) {
     add(side, "h3", "", current.school.name + " 的节目");
@@ -465,7 +467,7 @@ function renderSide(group) {
   const schoolList = add(side, "div", "info-list school-order-list");
   const previewOrder = activeRoll?.groupId === group.id && activeRoll.kind === "schools" ? activeRoll.preview : null;
   const schools = previewOrder ? previewOrder.map((id) => group.schools.find((s) => s.id === id)).filter(Boolean) : orderedSchools(group);
-  schoolList.classList.toggle("many", preparing && schools.length > 12);
+  schoolList.classList.toggle("many", Boolean(schoolOverview));
   for (const [index, school] of schools.entries()) {
     const row = add(schoolList, "div", "info-row" + (current?.school.id === school.id ? " current" : ""));
     add(row, "span", "", school.name);
@@ -482,34 +484,22 @@ function renderResults(group) {
   const box = $("resultsContent");
   clear(box);
   if (!entries.length) { add(box, "div", "results-empty", "节目出场序号尚未产生。"); return; }
-  if (isComplete(group)) {
-    const grid = add(box, "div", "final-results-grid");
-    const split = Math.ceil(entries.length / 2);
-    for (const segment of [entries.slice(0, split), entries.slice(split)]) {
-      if (!segment.length) continue;
-      const column = add(grid, "div", "final-results-column");
-      const header = add(column, "div", "final-result-head");
-      for (const label of ["序号", "节目", "学校"]) add(header, "span", "", label);
-      for (const entry of segment) {
-        const row = add(column, "div", "final-result-row");
-        add(row, "strong", "final-result-number", entry.number);
-        add(row, "span", "final-result-program", entry.title);
-        add(row, "span", "final-result-school", entry.school);
-      }
+  const byNumber = new Map(entries.map((entry) => [entry.number, entry]));
+  const split = Math.ceil(group.programs.length / 2);
+  const grid = add(box, "div", "final-results-grid");
+  grid.classList.toggle("single", group.programs.length === 1);
+  for (const [start, end] of [[1, split], [split + 1, group.programs.length]]) {
+    if (start > end) continue;
+    const column = add(grid, "div", "final-results-column");
+    const header = add(column, "div", "final-result-head");
+    for (const label of ["序号", "节目", "学校"]) add(header, "span", "", label);
+    for (let number = start; number <= end; number++) {
+      const entry = byNumber.get(number);
+      const row = add(column, "div", "final-result-row" + (entry ? "" : " pending"));
+      add(row, "strong", "final-result-number", number);
+      add(row, "span", "final-result-program", entry?.title || "待抽取");
+      add(row, "span", "final-result-school", entry?.school || "");
     }
-    return;
-  }
-  const wrap = add(box, "div", "result-table-wrap");
-  const table = add(wrap, "table", "result-table");
-  const head = add(table, "thead");
-  const header = add(head, "tr");
-  for (const title of ["序号", "节目", "学校"]) add(header, "th", "", title);
-  const body = add(table, "tbody");
-  for (const entry of entries) {
-    const row = add(body, "tr");
-    add(row, "td", "", entry.number);
-    add(row, "td", "", entry.title);
-    add(row, "td", "", entry.school);
   }
 }
 function renderAll() {
