@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#10263a">
   <meta name="description" content="现场导入学校与节目名单，公开抽签并导出节目顺序。">
   <title>现场抽签 · 节目顺序</title>
-  <link rel="stylesheet" href="./styles.css?v=7">
+  <link rel="stylesheet" href="./styles.css?v=8">
   <script defer src="./vendor/jszip.min.js"></script>
-  <script defer src="./app.js?v=7"></script>
+  <script defer src="./app.js?v=8"></script>
 </head>
 <body>
   <header class="topbar">
@@ -70,18 +70,6 @@
     <div class="modal-head"><div><span class="eyebrow">导入完成</span><h2 id="importTitle">文件夹已读取</h2></div><button id="closeImportButton" class="icon-button" type="button" aria-label="关闭">×</button></div>
     <p id="importSummary" class="modal-copy"></p><div id="importWarnings" class="import-warnings"></div>
     <div class="modal-actions"><button id="importDoneButton" class="button button-primary" type="button">开始选择组别</button></div>
-  </dialog>
-  <dialog id="overviewDialog" class="modal overview-dialog" aria-labelledby="overviewTitle">
-    <div class="overview-head">
-      <div class="overview-heading">
-        <div id="overviewPath" class="path-label"></div>
-        <h2 id="overviewTitle"></h2>
-      </div>
-      <span id="overviewCount" class="count-pill"></span>
-      <button id="overviewExportButton" class="button button-primary" type="button">导出当前组</button>
-      <button id="closeOverviewButton" class="button button-outline" type="button">关闭总览</button>
-    </div>
-    <div id="overviewGrid" class="overview-grid" aria-label="全部节目出场顺序"></div>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
