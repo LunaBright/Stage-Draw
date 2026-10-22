@@ -296,19 +296,6 @@ function stageFrame(panel, view) {
   focusValue.setAttribute("aria-live", "off");
   const controls = add(panel, "div", "stage-controls");
   const selectSlot = add(controls, "div", "stage-select-slot");
-  if (view.schools?.length) {
-    const select = add(selectSlot, "select", "stage-select");
-    select.id = "currentSchoolSelect";
-    select.setAttribute("aria-label", "选择当前抽签学校");
-    for (const school of view.schools) {
-      const option = add(select, "option", "", school.name);
-      option.value = school.id;
-    }
-    select.disabled = Boolean(activeRoll);
-    select.addEventListener("change", () => {
-      if (!activeRoll) $("stagePreview").textContent = select.selectedOptions[0]?.textContent || "—";
-    });
-  }
   const button = add(controls, "button", "stage-action", view.button || "等待开始");
   button.id = "stageActionButton";
   button.type = "button";
@@ -331,7 +318,8 @@ function continueAfterReveal(group) {
 }
 function previousLabel(last) {
   if (!last) return null;
-  if (last.kind === "representative" || last.kind === "school") return { name: last.schoolName, number: last.number };
+  if (last.kind === "representative") return { name: last.schoolName };
+  if (last.kind === "schools") return { name: last.count + " 所学校顺序已确定" };
   if (last.kind === "program") return { name: last.programTitle, number: last.number };
   if (last.kind === "all") return { name: last.count + " 条节目已定序" };
   return null;
@@ -359,18 +347,16 @@ function renderReveal(group) {
       button: "查看完整结果", onAction: next,
       total: 2, done: 2, progress: "抽签完成"
     });
-  } else if (last.kind === "school") {
-    const done = Object.keys(group.draw.schoolNumbers).length;
-    const allDone = done === group.schools.length;
+  } else if (last.kind === "schools") {
     stageFrame($("stageContent"), {
-      step: "方式二 · 第一轮结果", before: "学校顺序已抽出",
+      step: "方式二 · 第一轮结果", before: "全部学校顺序已确定",
       previous: previousLabel(prior),
-      copy: allDone ? "所有学校的顺序已确定。点击进入第二轮后，再开始逐校抽节目序号。" : "请确认本次结果，再选择下一所学校开始抽签。",
-      focusLabel: last.schoolName + " · 本次学校顺序",
-      focusValue: last.number + " 号",
-      button: allDone ? "进入第二轮 · 抽节目" : "选择下一所学校", onAction: next,
-      total: group.schools.length, done,
-      progress: "学校顺序已完成 " + done + " / " + group.schools.length
+      copy: "右侧显示本组学校的完整抽签顺序。确认后按此顺序逐校抽取节目序号。",
+      focusLabel: "本次抽签结果",
+      focusValue: last.count + " 所学校已排定顺序",
+      button: "进入第二轮 · 抽节目", onAction: next,
+      total: 2, done: 1,
+      progress: "第一轮已完成"
     });
   } else if (last.kind === "program") {
     const done = Object.keys(group.draw.programNumbers).length;
@@ -417,13 +403,7 @@ function renderStage(group) {
   const schoolDone = Object.keys(group.draw.schoolNumbers).length;
   const programDone = Object.keys(group.draw.programNumbers).length;
   if (schoolDone < group.schools.length) {
-    const schools = group.schools.filter((s) => !group.draw.schoolNumbers[s.id]);
-    const schoolId = roll?.kind === "school" ? roll.targetId : schools[0]?.id;
-    const school = group.schools.find((s) => s.id === schoolId);
-    const previous = previousLabel(group.draw.last);
-    stageFrame(panel, { step: "方式二 · 第一轮", before: "逐校抽取学校顺序", copy: "选择当前学校，开始滚动全组剩余学校顺序号，由代表点击停止。", previous, focusLabel: "当前抽签学校", focusValue: school?.name || "—", schools, button: roll ? "停止并确定结果" : "开始抽取学校顺序", onAction: () => rollingAction(group, "school", $("currentSchoolSelect")?.value, remainingNumbers(group.schools.length, group.draw.schoolNumbers)), total: group.schools.length, done: schoolDone });
-    if (roll) $("currentSchoolSelect").value = roll.targetId;
-
+    stageFrame(panel, { step: "方式二 · 第一轮", before: "一次抽出全部学校顺序", copy: "由一位工作人员点击开始，右侧学校名单快速随机排列；点击停止后，一次确定所有学校的抽签顺序。", previous: previousLabel(group.draw.last), focusLabel: "全组学校顺序", focusValue: "等待抽取 " + group.schools.length + " 所学校", ...action("schools", null, group.schools.map((s) => s.id), "开始抽取学校顺序"), total: 2, done: 0, progress: "第一轮 / 共两轮" });
     return;
   }
   if (programDone < group.programs.length) {
@@ -468,20 +448,17 @@ function renderSide(group) {
       const stat3 = add(side, "div", "mini-stat"); add(stat3, "span", "", "代表学校"); add(stat3, "strong", "", group.draw.representativeId ? schoolName(group, group.draw.representativeId) : "待抽取");
       add(side, "p", "", "节目序号在本组内唯一。导入的每一行节目作为一条抽签记录，单元格中的复合标题会完整保留。");
     } else {
-      add(side, "p", "", "方式一由一所代表学校一次性抽出全部节目顺序。方式二先抽学校顺序，再逐个抽节目序号。");
+      add(side, "p", "", "方式一由一所代表学校一次性抽出全部节目顺序。方式二一次排定全部学校顺序，再按顺序逐校抽节目序号。");
     }
     return;
   }
   const schoolList = add(side, "div", "info-list");
-  const schools = group.schools.slice().sort((a, b) => {
-    const x = group.draw.schoolNumbers[a.id] || 999999;
-    const y = group.draw.schoolNumbers[b.id] || 999999;
-    return x - y;
-  });
-  for (const school of schools) {
+  const previewOrder = activeRoll?.groupId === group.id && activeRoll.kind === "schools" ? activeRoll.preview : null;
+  const schools = previewOrder ? previewOrder.map((id) => group.schools.find((s) => s.id === id)).filter(Boolean) : orderedSchools(group);
+  for (const [index, school] of schools.entries()) {
     const row = add(schoolList, "div", "info-row" + (current?.school.id === school.id ? " current" : ""));
     add(row, "span", "", school.name);
-    add(row, "b", "", group.draw.schoolNumbers[school.id] ? group.draw.schoolNumbers[school.id] + " 号" : "待抽");
+    add(row, "b", "", previewOrder ? index + 1 + " 位" : group.draw.schoolNumbers[school.id] ? group.draw.schoolNumbers[school.id] + " 位" : "待抽");
   }
   if (current) add(side, "p", "", "当前轮到第 " + group.draw.schoolNumbers[current.school.id] + " 位学校：" + current.school.name + "。");
 }function renderResults(group) {
@@ -538,7 +515,7 @@ function cancelRoll() {
   activeRoll = null;
 }
 function rollPreview(roll) {
-  if (roll.kind === "all") return shuffle(roll.candidates);
+  if (roll.kind === "all" || roll.kind === "schools") return shuffle(roll.candidates);
   return roll.candidates[safeRandomIndex(roll.candidates.length)];
 }
 function updateRollingPreview() {
@@ -552,6 +529,9 @@ function updateRollingPreview() {
   else if (roll.kind === "all") {
     const program = group.programs.find((p) => p.id === roll.preview[0]);
     preview.textContent = program?.title || "";
+  } else if (roll.kind === "schools") {
+    preview.textContent = "第 1 位 · " + schoolName(group, roll.preview[0]);
+    renderSide(group);
   } else preview.textContent = roll.preview + " 号";
   preview.classList.add("is-flashing");
   button.disabled = false;
@@ -561,7 +541,7 @@ function beginRoll(group, kind, targetId, candidates) {
   if (activeRoll || group.pendingReveal || groupNow()?.id !== group.id || !candidates.length) return;
   if (kind === "representative" && (group.mode !== "one" || group.draw.representativeId)) return;
   if (kind === "all" && (group.mode !== "one" || !group.draw.representativeId || isComplete(group))) return;
-  if (kind === "school" && (group.mode !== "two" || group.draw.schoolNumbers[targetId] || !group.schools.some((s) => s.id === targetId))) return;
+  if (kind === "schools" && (group.mode !== "two" || Object.keys(group.draw.schoolNumbers).length === group.schools.length)) return;
   if (kind === "program" && (group.mode !== "two" || nextProgram(group)?.program.id !== targetId)) return;
   activeRoll = { groupId: group.id, kind, targetId, candidates: candidates.slice(), preview: null, timer: null };
   activeRoll.preview = rollPreview(activeRoll);
@@ -570,7 +550,7 @@ function beginRoll(group, kind, targetId, candidates) {
     if (!activeRoll || groupNow()?.id !== group.id) return;
     activeRoll.preview = rollPreview(activeRoll);
     updateRollingPreview();
-  }, kind === "all" ? 120 : 80);
+  }, kind === "all" ? 90 : kind === "schools" ? 70 : 60);
 }
 function finishRoll(group) {
   const roll = activeRoll;
@@ -585,9 +565,9 @@ function finishRoll(group) {
   } else if (roll.kind === "all") {
     result.forEach((id, index) => { group.draw.programNumbers[id] = index + 1; });
     group.draw.last = { kind: "all", count: result.length };
-  } else if (roll.kind === "school") {
-    group.draw.schoolNumbers[roll.targetId] = result;
-    group.draw.last = { kind: "school", schoolName: schoolName(group, roll.targetId), number: result };
+  } else if (roll.kind === "schools") {
+    result.forEach((id, index) => { group.draw.schoolNumbers[id] = index + 1; });
+    group.draw.last = { kind: "schools", count: result.length };
   } else if (roll.kind === "program") {
     const program = group.programs.find((p) => p.id === roll.targetId);
     group.draw.programNumbers[roll.targetId] = result;
@@ -599,10 +579,11 @@ function finishRoll(group) {
 function undoLast(group) {
   if (activeRoll || !group.history.length) return;
   if (!window.confirm("确定撤销上一签吗？这签的结果将取消，可重新抽取。")) return;
+  const undoneKind = group.draw.last?.kind;
   group.draw = group.history.pop();
   group.pendingReveal = false;
   renderAll();
-  notice("已撤销上一签，号码已返回可抽取号码池。");
+  notice(undoneKind === "schools" ? "已撤销整轮学校顺序，可以重新一次抽取。" : "已撤销上一签，号码已返回可抽取号码池。");
 }
 function resetGroup(group) {
   if (activeRoll || !hasDraw(group)) return;

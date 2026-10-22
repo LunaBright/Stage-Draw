@@ -8,7 +8,7 @@
   <title>现场抽签 · 节目顺序</title>
   <link rel="stylesheet" href="./styles.css">
   <script defer src="./vendor/jszip.min.js"></script>
-  <script defer src="./app.js"></script>
+  <script defer src="./app.js?v=5"></script>
 </head>
 <body>
   <header class="topbar">
@@ -41,7 +41,7 @@
           <div><div id="groupPath" class="path-label"></div><h1 id="groupTitle"></h1><div class="group-meta"><span id="groupCounts"></span><span id="groupStatus" class="status-badge"></span></div></div>
           <div class="group-tools"><button id="editButton" class="button button-outline" type="button">编辑名单</button><button id="undoButton" class="button button-outline" type="button">撤销上一签</button><button id="resetButton" class="button button-outline danger-outline" type="button">整组重新抽</button><button id="exportButton" class="button button-primary" type="button">导出当前组</button></div>
         </div>
-        <div class="mode-row" aria-label="抽签方式"><button class="mode-button" data-mode="one" type="button"><span>方式一</span><strong>代表学校，一次定序</strong></button><button class="mode-button" data-mode="two" type="button"><span>方式二</span><strong>学校与节目，逐签抽取</strong></button></div>
+        <div class="mode-row" aria-label="抽签方式"><button class="mode-button" data-mode="one" type="button"><span>方式一</span><strong>代表学校，一次定序</strong></button><button class="mode-button" data-mode="two" type="button"><span>方式二</span><strong>一次排学校，逐签抽节目</strong></button></div>
         <div class="stage-layout"><section id="stageContent" class="stage-panel" aria-live="polite"></section><aside id="drawSidePanel" class="draw-side-panel"></aside></div>
         <section class="results-panel"><div class="section-heading"><div><span class="eyebrow">当前组结果</span><h2>节目出场顺序</h2></div><span id="resultCount" class="count-pill"></span></div><div id="resultsContent" class="results-content"></div></section>
       </div>
