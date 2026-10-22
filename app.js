@@ -315,6 +315,7 @@ function rollingAction(group, kind, targetId, candidates) {
 function continueAfterReveal(group) {
   group.pendingReveal = null;
   renderAll();
+  if (isComplete(group)) openOverview(group);
 }
 function previousLabel(last) {
   if (!last) return null;
@@ -396,7 +397,7 @@ function renderStage(group) {
     } else if (!isComplete(group)) {
       stageFrame(panel, { step: "方式一 · 第二步", before: "由 ", highlight: schoolName(group, group.draw.representativeId), after: " 确定节目顺序", copy: "开始后全组节目持续随机排序，点击停止即一次确定 1～" + group.programs.length + " 号。", previous: { name: schoolName(group, group.draw.representativeId) }, focusLabel: "本组代表学校 · " + schoolName(group, group.draw.representativeId), focusValue: "点击开始，预览全组节目", ...action("all", null, group.programs.map((p) => p.id), "开始随机排序"), total: 2, done: 1, progress: "第二步 / 共两步" });
     } else {
-      stageFrame(panel, { step: "方式一 · 已完成", before: "本组节目顺序已确定", copy: "请在下方核对结果并导出 Excel。", previous: previousLabel(group.draw.last), focusLabel: "已完成", focusValue: group.programs.length + " 条节目已定序", total: 2, done: 2, progress: "抽签完成" });
+      stageFrame(panel, { step: "方式一 · 已完成", before: "本组节目顺序已确定", copy: "可打开双列总览核对全部节目，并导出 Excel。", previous: previousLabel(group.draw.last), focusLabel: "已完成", focusValue: group.programs.length + " 条节目已定序", button: "查看双列总览", onAction: () => openOverview(group), total: 2, done: 2, progress: "抽签完成" });
     }
     return;
   }
@@ -413,7 +414,7 @@ function renderStage(group) {
     stageFrame(panel, { step: "方式二 · 第二轮", before: "轮到 ", highlight: current.school.name, after: " 抽节目", copy: "按学校顺序，为当前节目从全组共用的剩余号码中抽取出场序号。", previous, focusLabel: "当前节目 · 第 " + group.draw.schoolNumbers[current.school.id] + " 位学校 · ", focusSchool: current.school.name, focusValue: current.program.title, ...action("program", current.program.id, remainingNumbers(group.programs.length, group.draw.programNumbers), "开始抽取节目序号"), total: group.programs.length, done: programDone });
     return;
   }
-  stageFrame(panel, { step: "方式二 · 已完成", before: "本组节目顺序已确定", copy: "学校与节目两轮抽签全部完成。请在下方核对结果并导出 Excel。", previous: previousLabel(group.draw.last), focusLabel: "已完成", focusValue: group.programs.length + " 条节目已定序", total: group.programs.length, done: group.programs.length, progress: "抽签完成" });
+  stageFrame(panel, { step: "方式二 · 已完成", before: "本组节目顺序已确定", copy: "学校与节目两轮抽签全部完成。可打开双列总览核对并导出 Excel。", previous: previousLabel(group.draw.last), focusLabel: "已完成", focusValue: group.programs.length + " 条节目已定序", button: "查看双列总览", onAction: () => openOverview(group), total: group.programs.length, done: group.programs.length, progress: "抽签完成" });
 }
 function renderSide(group) {
   const side = $("drawSidePanel");
@@ -437,31 +438,64 @@ function renderSide(group) {
       add(row, "b", "", group.draw.programNumbers[program.id] ? group.draw.programNumbers[program.id] + " 号" : program.id === current.program.id ? "当前" : "待抽");
     }
     const subtitle = add(side, "h3", "", "学校抽签顺序");
-    subtitle.style.marginTop = "22px";
+    subtitle.style.marginTop = "10px";
   } else {
-    add(side, "h3", "", group.mode === "two" ? "学校抽签顺序" : "本组概况");
+    add(side, "h3", "", group.mode === "two" ? "学校抽签顺序" : "本组学校名单");
   }
   if (group.mode !== "two") {
-    const stat1 = add(side, "div", "mini-stat"); add(stat1, "span", "", "学校"); add(stat1, "strong", "", group.schools.length + " 所");
-    const stat2 = add(side, "div", "mini-stat"); add(stat2, "span", "", "节目"); add(stat2, "strong", "", group.programs.length + " 条");
-    if (group.mode === "one") {
-      const stat3 = add(side, "div", "mini-stat"); add(stat3, "span", "", "代表学校"); add(stat3, "strong", "", group.draw.representativeId ? schoolName(group, group.draw.representativeId) : "待抽取");
-      add(side, "p", "", "节目序号在本组内唯一。导入的每一行节目作为一条抽签记录，单元格中的复合标题会完整保留。");
-    } else {
-      add(side, "p", "", "方式一由一所代表学校一次性抽出全部节目顺序。方式二一次排定全部学校顺序，再按顺序逐校抽节目序号。");
+    add(side, "p", "", "本组共 " + group.schools.length + " 所学校、" + group.programs.length + " 条节目。");
+    if (group.mode === "one" && group.draw.representativeId) {
+      const representative = add(side, "div", "mini-stat");
+      add(representative, "span", "", "代表学校");
+      add(representative, "strong", "", schoolName(group, group.draw.representativeId));
     }
+    const schoolList = add(side, "div", "info-list school-order-list");
+    schoolList.classList.toggle("many", group.schools.length > 12);
+    for (const school of group.schools) {
+      const row = add(schoolList, "div", "info-row");
+      add(row, "span", "", school.name);
+      if (school.id === group.draw.representativeId) add(row, "b", "", "代表");
+    }
+    if (!group.schools.length) add(side, "p", "", "请先添加学校。");
     return;
   }
-  const schoolList = add(side, "div", "info-list");
+  const schoolList = add(side, "div", "info-list school-order-list");
   const previewOrder = activeRoll?.groupId === group.id && activeRoll.kind === "schools" ? activeRoll.preview : null;
   const schools = previewOrder ? previewOrder.map((id) => group.schools.find((s) => s.id === id)).filter(Boolean) : orderedSchools(group);
-  for (const [index, school] of schools.entries()) {
+  const visibleSchools = current ? schools.filter((school) => group.draw.schoolNumbers[school.id] >= group.draw.schoolNumbers[current.school.id]).slice(0, 3) : schools;
+  schoolList.classList.toggle("many", visibleSchools.length > 12);
+  for (const [index, school] of visibleSchools.entries()) {
     const row = add(schoolList, "div", "info-row" + (current?.school.id === school.id ? " current" : ""));
     add(row, "span", "", school.name);
     add(row, "b", "", previewOrder ? index + 1 + " 位" : group.draw.schoolNumbers[school.id] ? group.draw.schoolNumbers[school.id] + " 位" : "待抽");
   }
-  if (current) add(side, "p", "", "当前轮到第 " + group.draw.schoolNumbers[current.school.id] + " 位学校：" + current.school.name + "。");
-}function renderResults(group) {
+
+}
+function openOverview(group) {
+  if (!isComplete(group) || groupNow()?.id !== group.id) return;
+  const entries = resultRows(group);
+  const split = Math.ceil(entries.length / 2);
+  $("overviewPath").textContent = currentPath(group);
+  $("overviewTitle").textContent = group.name + " · 节目出场顺序";
+  $("overviewCount").textContent = entries.length + " 条节目";
+  const grid = $("overviewGrid");
+  clear(grid);
+  grid.classList.toggle("single", entries.length === 1);
+  grid.classList.toggle("dense", split > 12);
+  for (const segment of [entries.slice(0, split), entries.slice(split)]) {
+    if (!segment.length) continue;
+    const column = add(grid, "div", "overview-column");
+    column.style.setProperty("--overview-rows", split);
+    for (const entry of segment) {
+      const row = add(column, "div", "overview-entry");
+      add(row, "strong", "overview-number", entry.number);
+      add(row, "span", "overview-program", entry.title);
+      add(row, "span", "overview-school", entry.school);
+    }
+  }
+  $("overviewDialog").showModal();
+}
+function renderResults(group) {
   const entries = resultRows(group);
   $("resultCount").textContent = entries.length + " / " + group.programs.length + " 已确定";
   const box = $("resultsContent");
@@ -530,7 +564,7 @@ function updateRollingPreview() {
     const program = group.programs.find((p) => p.id === roll.preview[0]);
     preview.textContent = program?.title || "";
   } else if (roll.kind === "schools") {
-    preview.textContent = "第 1 位 · " + schoolName(group, roll.preview[0]);
+    preview.textContent = schoolName(group, roll.preview[0]);
     renderSide(group);
   } else preview.textContent = roll.preview + " 号";
   preview.classList.add("is-flashing");
@@ -820,6 +854,13 @@ function bindEvents() {
   const closeImport = () => $("importDialog").close();
   $("closeImportButton").addEventListener("click", closeImport);
   $("importDoneButton").addEventListener("click", closeImport);
+  $("closeOverviewButton").addEventListener("click", () => $("overviewDialog").close());
+  $("overviewExportButton").addEventListener("click", async () => {
+    const group = groupNow();
+    if (!group) return;
+    try { await exportCurrentGroup(group); }
+    catch (error) { notice("导出失败：" + (error?.message || String(error))); }
+  });
   window.addEventListener("beforeunload", (event) => {
     if (!state.groups.length && !state.editorDraft) return;
     event.preventDefault();
